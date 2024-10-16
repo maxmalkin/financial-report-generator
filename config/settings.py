@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -83,11 +84,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'financeinfo',
-        'USER': 'blockhouse-admin',
-        'PASSWORD': "j+x'2)d;^5.J6-,T",
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '3000',
     }
 }
 
