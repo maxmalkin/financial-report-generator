@@ -1,7 +1,8 @@
 # .gitignore for financial-report-generator
 
-# Python virtual environment files
-venv
+# Python files
+venv/
+__pycache__/
 
 # Environment variables
 .env
