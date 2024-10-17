@@ -24,13 +24,14 @@ ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
 
 class AvailableSymbolsView(APIView):
     def get(self, request, *args, **kwargs):
-        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=stock&apikey={ALPHA_VANTAGE_API_KEY}"
+        url = f"https://www.alphavantage.co/query?function=LISTING_STATUS&apikey={ALPHA_VANTAGE_API_KEY}"
 
         try:
             response = requests.get(url)
             response.raise_for_status()
-            symbols_data = response.json()
-            symbols = [item['1. symbol'] for item in symbols_data.get('bestMatches', [])]
+
+            symbols_data = response.text.splitlines()
+            symbols = [line.split(',')[0] for line in symbols_data[1:]]
 
             if not symbols:
                 return Response({'error': 'No symbols found from Alpha Vantage'}, status=status.HTTP_404_NOT_FOUND)
@@ -39,7 +40,6 @@ class AvailableSymbolsView(APIView):
             logger.error(f"Error fetching symbols from Alpha Vantage: {str(e)}")
             return Response({'error': 'An error occurred while fetching symbols from Alpha Vantage'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         return render(request, 'stock_picker.html', {'symbols': symbols})
 
 class ItemViewSet(viewsets.ModelViewSet):
@@ -144,3 +144,7 @@ class GenerateReportView(APIView):
         pdf_buffer.seek(0)
 
         return FileResponse(pdf_buffer, as_attachment=True, filename=f'{symbol}_performance_report.pdf')
+    
+    class GeneratePredictionView(APIView):
+        def get(self, request, *args, **kwargs):
+            return render(request, 'generate_prediction.html')

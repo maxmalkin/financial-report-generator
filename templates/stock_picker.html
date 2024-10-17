@@ -22,9 +22,9 @@
 				.addEventListener("click", function () {
 					const selectedSymbol = document.getElementById("symbol").value;
 					if (selectedSymbol) {
-						window.location.href = `/predict/?symbol=${selectedSymbol}`;
+						window.location.href = `/api/generate-report/?symbol=${selectedSymbol}`;
 					} else {
-						alert("Please select a stock symbol");
+						alert("Please select a stock.");
 					}
 				});
 		</script>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Predict Stock Price</title>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+		/>
+	</head>
+	<body class="bg-gray-100 p-8">
+		<h1 class="text-2xl font-bold mb-4">
+			Generate Stock Price Prediction Report
+		</h1>
+		<div class="mb-4">
+			<label for="symbol-select" class="block text-lg font-medium text-gray-700"
+				>Select Stock Symbol:</label
+			>
+			<select
+				id="symbol-select"
+				class="mt-1 block w-1/2 p-2 border border-gray-300 rounded-md"
+			>
+				<option value="">--Select a Symbol--</option>
+			</select>
+		</div>
+		<button
+			id="predict-button"
+			class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+		>
+			Predict and Generate Report
+		</button>
+
+		<script>
+			document.addEventListener("DOMContentLoaded", () => {
+				fetch("/api/available-symbols/")
+					.then((response) => response.json())
+					.then((data) => {
+						const selectElement = document.getElementById("symbol-select");
+						const symbols = data.symbols;
+
+						symbols.forEach((symbol) => {
+							const option = document.createElement("option");
+							option.value = symbol;
+							option.text = symbol;
+							selectElement.appendChild(option);
+						});
+					})
+					.catch((error) => {
+						console.error("Error fetching available symbols:", error);
+					});
+
+				document
+					.getElementById("predict-button")
+					.addEventListener("click", () => {
+						const symbol = document.getElementById("symbol-select").value;
+
+						if (!symbol) {
+							alert("Please select a stock symbol before generating a report.");
+							return;
+						}
+						fetch(`/api/predict/`, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({ symbol: symbol }),
+						})
+							.then((response) => {
+								if (response.ok) {
+									return fetch(`/api/generate-report/?symbol=${symbol}`);
+								} else {
+									return response.json().then((errorData) => {
+										throw new Error(
+											errorData.error || "Failed to predict stock price."
+										);
+									});
+								}
+							})
+							.then((reportResponse) => {
+								if (reportResponse.ok) {
+									return reportResponse.blob();
+								} else {
+									return reportResponse.json().then((errorData) => {
+										throw new Error(
+											errorData.error || "Failed to generate report."
+										);
+									});
+								}
+							})
+							.then((blob) => {
+								const url = window.URL.createObjectURL(blob);
+								const a = document.createElement("a");
+								a.href = url;
+								a.download = `${symbol}_performance_report.pdf`;
+								document.body.appendChild(a);
+								a.click();
+								a.remove();
+								window.URL.revokeObjectURL(url);
+							})
+							.catch((error) => {
+								console.error("Error generating report:", error);
+								alert("Error generating report: " + error.message);
+							});
+					});
+			});
+		</script>
+	</body>
+</html>
