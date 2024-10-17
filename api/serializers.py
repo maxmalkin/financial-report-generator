@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import StockPrice, Item
+from .models import StockPrice, Item, PredictedStockPrice
 
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,3 +20,8 @@ class BacktestSerializer(serializers.Serializer):
         if data['short_ma'] >= data['long_ma']:
             raise serializers.ValidationError("Short moving average period must be less than the long moving average period.")
         return data
+
+class PredictedStockPriceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PredictedStockPrice
+        fields = '__all__'

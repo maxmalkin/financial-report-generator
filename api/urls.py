@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ItemViewSet, BacktestView, fetch_data_view
+from .views import ItemViewSet, BacktestView, fetch_data_view, PredictStockPriceView
 from django.contrib import admin
 from . import views
 
@@ -11,4 +11,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('fetch/', fetch_data_view, name='fetch-data'),
     path('backtest/', BacktestView.as_view(), name='backtest'),
+    path('predict/', PredictStockPriceView.as_view(), name='predict-stock-price'),
 ]
