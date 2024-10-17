@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-DJANGO_SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY')
 ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
 
 
