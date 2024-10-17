@@ -3,6 +3,22 @@
 # Python files
 venv/
 __pycache__/
+api/__pycache__/admin.cpython-313.pyc
+api/__pycache__/backtest.cpython-313.pyc
+api/__pycache__/models.cpython-313.pyc
+api/__pycache__/serializers.cpython-313.pyc
+api/__pycache__/urls.cpython-313.pyc
+api/__pycache__/views.cpython-313.pyc
+api/tests/__pycache__/__init__.cpython-313.pyc
+api/tests/__pycache__/test_backtest.cpython-313.pyc
+config/__pycache__/settings.cpython-313.pyc
+config/__pycache__/urls.cpython-313.pyc
+config/__pycache__/wsgi.cpython-313.pyc
+api/migrations/__pycache__/__init__.cpython-313.pyc
+api/migrations/__pycache__/0001_initial.cpython-313.pyc
+api/migrations/__pycache__/0002_stockprice_delete_item_and_more.cpython-313.pyc
+api/migrations/__pycache__/0003_item_remove_stockprice_api_stockpr_symbol_a3e398_idx.cpython-313.pyc
+config/__pycache__/settings.cpython-313.pyc
 
 # Environment variables
 .env

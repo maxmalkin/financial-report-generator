@@ -24,3 +24,4 @@ class StockPrice(models.Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.date}"
+    
