@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Stock Symbol Picker</title>
+	</head>
+	<body>
+		<h1>Available Symbols</h1>
+		<label for="symbol">Choose a stock symbol:</label>
+		<select id="symbol" name="symbol">
+			<option value="">Select a symbol</option>
+			{% for symbol in symbols %}
+			<option value="{{ symbol }}">{{ symbol }}</option>
+			{% endfor %}
+		</select>
+		<button id="predictButton">Predict Stock Prices</button>
+
+		<script>
+			document
+				.getElementById("predictButton")
+				.addEventListener("click", function () {
+					const selectedSymbol = document.getElementById("symbol").value;
+					if (selectedSymbol) {
+						window.location.href = `/predict/?symbol=${selectedSymbol}`;
+					} else {
+						alert("Please select a stock symbol");
+					}
+				});
+		</script>
+	</body>
+</html>

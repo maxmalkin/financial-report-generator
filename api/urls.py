@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ItemViewSet, BacktestView, fetch_data_view, PredictStockPriceView, GenerateReportView
+from .views import ItemViewSet, BacktestView, PredictStockPriceView, GenerateReportView, AvailableSymbolsView
 from django.contrib import admin
 from . import views
 
@@ -9,8 +9,8 @@ router.register(r'items', ItemViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('fetch/', fetch_data_view, name='fetch-data'),
     path('backtest/', BacktestView.as_view(), name='backtest'),
     path('predict/', PredictStockPriceView.as_view(), name='predict-stock-price'),
-    path('generate-report/', GenerateReportView.as_view(), name='generate-report')
+    path('generate-report/', GenerateReportView.as_view(), name='generate-report'),
+    path('available-symbols/', AvailableSymbolsView.as_view(), name='available-symbols'),
 ]

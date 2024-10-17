@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from api import views
-from api.views import BacktestView
+from api.views import AvailableSymbolsView
 
 urlpatterns = [
     path('admin/', admin.site.urls),

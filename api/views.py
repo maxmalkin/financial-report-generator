@@ -1,7 +1,9 @@
 import io
+from venv import logger
 import joblib
 from tkinter import Canvas
 import numpy as np
+import requests
 from .models import Prediction, StockPrice
 from .backtest import run_backtest
 from rest_framework.views import APIView
@@ -14,12 +16,32 @@ from datetime import timedelta
 import matplotlib.pyplot as plot
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from django.shortcuts import render
+import os
+import requests
 
+ALPHA_VANTAGE_API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
 
-def fetch_data_view(request):
-    if request.method == 'GET':
-        data = {"message": "Data fetched successfully."}
-        return JsonResponse(data)
+class AvailableSymbolsView(APIView):
+    def get(self, request, *args, **kwargs):
+        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=stock&apikey={ALPHA_VANTAGE_API_KEY}"
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            symbols_data = response.json()
+            symbols = [item['1. symbol'] for item in symbols_data.get('bestMatches', [])]
+
+            if not symbols:
+                return Response({'error': 'No symbols found from Alpha Vantage'}, status=status.HTTP_404_NOT_FOUND)
+
+        except requests.RequestException as e:
+            logger.error(f"Error fetching symbols from Alpha Vantage: {str(e)}")
+            return Response({'error': 'An error occurred while fetching symbols from Alpha Vantage'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return render(request, 'stock_picker.html', {'symbols': symbols})
+
 class ItemViewSet(viewsets.ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
