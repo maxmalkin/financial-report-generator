@@ -1,46 +1,50 @@
-import pandas as pd
 from .models import StockPrice
+import pandas as pd
 
 def run_backtest(symbol, initial_investment, short_ma, long_ma):
     queryset = StockPrice.objects.filter(symbol=symbol).order_by('date')
-    data = pd.DataFrame(list(queryset.values('date', 'close_price')))
+    if not queryset.exists():
+        raise ValueError(f"No data found for symbol {symbol}")
 
-    data['date'] = pd.to_datetime(data['date'])
+    data = pd.DataFrame.from_records(queryset.values())
     data.set_index('date', inplace=True)
+    data.sort_index(inplace=True)
 
     data['short_ma'] = data['close_price'].rolling(window=short_ma).mean()
     data['long_ma'] = data['close_price'].rolling(window=long_ma).mean()
 
+    position = 0
     cash = initial_investment
-    holdings = 0
-    num_trades = 0
-    portfolio_value = initial_investment
-    max_portfolio_value = initial_investment
+    investment_value = 0
+    trades = 0
     max_drawdown = 0
+    peak = 0
 
     for i in range(len(data)):
-        row = data.iloc[i]
-        if pd.notna(row['short_ma']) and pd.notna(row['long_ma']):
+        if pd.isna(data['short_ma'].iloc[i]) or pd.isna(data['long_ma'].iloc[i]):
+            continue
 
-            if row['short_ma'] < row['long_ma'] and cash > row['close_price']:
-                holdings = cash / row['close_price']
-                cash = 0
-                num_trades += 1
-            elif row['short_ma'] > row['long_ma'] and holdings > 0:
-                cash = holdings * row['close_price']
-                holdings = 0
-                num_trades += 1
+        if position == 0 and data['short_ma'].iloc[i] > data['long_ma'].iloc[i]:
+            position = cash / data['close_price'].iloc[i]
+            cash = 0
+            trades += 1
 
-        portfolio_value = cash + holdings * row['close_price']
-        max_portfolio_value = max(max_portfolio_value, portfolio_value)
-        drawdown = (max_portfolio_value - portfolio_value) / max_portfolio_value
-        max_drawdown = max(max_drawdown, drawdown)
+        elif position > 0 and data['short_ma'].iloc[i] < data['long_ma'].iloc[i]:
+            cash = position * data['close_price'].iloc[i]
+            position = 0
+            trades += 1
 
-    final_return = (portfolio_value - initial_investment) / initial_investment * 100
+        investment_value = position * data['close_price'].iloc[i] if position > 0 else cash
+        peak = max(peak, investment_value)
+        max_drawdown = max(max_drawdown, (peak - investment_value) / peak if peak > 0 else 0)
 
-    return {
-        'total_return': f'{final_return:.2f}%',
-        'max_drawdown': f'{max_drawdown:.2%}',
-        'num_trades': num_trades,
-        'final_portfolio_value': portfolio_value
+    if position > 0:
+        cash = position * data['close_price'].iloc[-1]
+    total_return = (cash - initial_investment) / initial_investment * 100
+
+    performance_summary = {
+        "total_return": total_return,
+        "max_drawdown": max_drawdown * 100,
+        "trades_executed": trades
     }
+    return performance_summary
