@@ -3,6 +3,27 @@ from datetime import datetime
 from .models import StockPrice
 from django.conf import settings
 import os
+import io
+from venv import logger
+import joblib
+from tkinter import Canvas
+import numpy as np
+import requests
+from .models import Prediction, StockPrice
+from .backtest import run_backtest
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, viewsets
+from .serializers import ItemSerializer, BacktestSerializer
+from .models import Item, StockPrice
+from django.http import FileResponse, JsonResponse
+from datetime import timedelta
+import matplotlib.pyplot as plot
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from django.shortcuts import redirect, render
+import os
+import requests
 
 API_URL = "https://www.alphavantage.co/query"
 API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
@@ -14,7 +35,7 @@ def fetch_stock_data(symbol):
 		'function': 'TIME_SERIES_DAILY',
 		'symbol': symbol,
 		'apikey': API_KEY,
-		'outputsize': 'full'
+		'outputsize': 'compact'
 	}
 
 	response = requests.get(API_URL, params=params)
@@ -51,3 +72,4 @@ def fetch_stock_data(symbol):
 		)
 
 	print(f"Successfully fetched and stored data for {symbol}")
+ 
