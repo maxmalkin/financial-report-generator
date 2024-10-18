@@ -1,4 +1,5 @@
 import io
+from django.http import JsonResponse
 import joblib
 import requests
 import numpy as np
@@ -13,7 +14,7 @@ from rest_framework import status, viewsets
 import matplotlib.pyplot as plot
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from .services import fetch_stock_data
+from .services import fetch_stock_data, predict_stock
 import os
 from django.conf import settings
 from rest_framework.permissions import AllowAny
@@ -64,81 +65,23 @@ class AvailableSymbolsView(APIView):
         return render(request, 'stock_picker.html', {'symbols': symbols})
 
 
-class PredictStockPriceView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request, *args, **kwargs):
+class PredictStockView(APIView):
+    def post(self, request):
         symbol = request.data.get('symbol')
+        print(f"Received symbol: {symbol}") 
+
         if not symbol:
-            logger.error("Stock symbol is missing from the request.")
-            return Response({'error': 'Stock symbol is required'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            api_key = ALPHA_VANTAGE_API_KEY
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&apikey={api_key}"
-            response = requests.get(url)
-            response.raise_for_status()
-            response_data = response.json()
-
-            if "Time Series (Daily)" not in response_data:
-                logger.error(f"No data found for the symbol: {symbol}")
-                return Response({'error': 'No data found for the given symbol'}, status=status.HTTP_404_NOT_FOUND)
-
-        except requests.RequestException as e:
-            logger.exception(f"Error while fetching data from Alpha Vantage for symbol {symbol}: {str(e)}")
-            return Response({'error': 'An error occurred while fetching stock data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JsonResponse({'error': 'No symbol provided'}, status=400)
 
         try:
-            time_series = response_data["Time Series (Daily)"]
-            sorted_dates = sorted(time_series.keys(), reverse=True)[:30]
-            stock_prices = [
-                StockPrice(
-                    symbol=symbol,
-                    date=date,
-                    open_price=float(time_series[date]["1. open"]),
-                    high_price=float(time_series[date]["2. high"]),
-                    low_price=float(time_series[date]["3. low"]),
-                    close_price=float(time_series[date]["4. close"]),
-                    volume=int(time_series[date]["6. volume"]),
-                )
-                for date in sorted_dates
-            ]
-
-            StockPrice.objects.bulk_create(stock_prices, ignore_conflicts=True)
-
+            prediction = predict_stock(symbol)
+            return JsonResponse({'symbol': symbol, 'prediction': prediction}, status=200)
+        except ValueError as ve:
+            return JsonResponse({'error': str(ve)}, status=400)
+        except FileNotFoundError as fe:
+            return JsonResponse({'error': str(fe)}, status=404)
         except Exception as e:
-            logger.exception(f"An error occurred while processing or saving stock data for symbol {symbol}: {str(e)}")
-            return Response({'error': 'An error occurred while saving stock data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            model = joblib.load('/models/prediction-model.pkl')
-        except FileNotFoundError:
-            logger.critical("Model file not found.")
-            return Response({'error': 'Model file not found'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            logger.exception(f"An error occurred while loading the model: {str(e)}")
-            return Response({'error': 'An error occurred while loading the model'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            last_day = (stock_prices[0].date - stock_prices[-1].date).days
-            future_days = np.array(range(last_day + 1, last_day + 31)).reshape(-1, 1)
-            predicted_prices = model.predict(future_days)
-        except Exception as e:
-            logger.exception(f"An error occurred during model prediction: {str(e)}")
-            return Response({'error': 'An error occurred during model prediction'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            prediction_objects = []
-            start_date = stock_prices[0].date + timedelta(days=1)
-            for i in range(30):
-                prediction_date = start_date + timedelta(days=i)
-                prediction_objects.append(Prediction(symbol=symbol, date=prediction_date, predicted_price=predicted_prices[i]))
-
-            Prediction.objects.bulk_create(prediction_objects)
-        except Exception as e:
-            logger.exception(f"An error occurred while saving predictions to the database: {str(e)}")
-            return Response({'error': 'An error occurred while saving predictions'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        logger.info(f"Successfully generated predictions for symbol: {symbol}")
-        return redirect(f'/api/generate-report/?symbol={symbol}')
+            return JsonResponse({'error': f"Unexpected error: {str(e)}"}, status=500)
 
 
 class GenerateReportView(APIView):
