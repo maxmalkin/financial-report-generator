@@ -33,17 +33,8 @@ def fetch_stock_data(symbol):
         print(f"No data found for {symbol}")
         raise ValueError(f"No data found for the symbol: {symbol}")
 
-    prices = []
-    for date_str, daily_data in data.items():
-        try:
-            prices.append(float(daily_data['4. close']))
-        except KeyError as e:
-            print(f"Missing key for {date_str}: {e}")
-
-    if len(prices) < 30:
-        raise ValueError("Not enough data to make a prediction.")
-
-    return list(reversed(prices))
+    store_stock_data(symbol)
+    return data
 
 def load_model():
     try:
@@ -94,10 +85,12 @@ def ensure_model_exists():
 def predict_stock(symbol):
     try:
         stock_data = fetch_stock_data(symbol)
-        print(f"Fetched stock data: {stock_data[-30:]}")
+        prices = [float(data['4. close']) for date, data in sorted(stock_data.items())]
+        if len(prices) < 30:
+            raise ValueError("Not enough data to make a prediction.")
 
-        input_data = np.array(stock_data[-30:]).reshape(1, -1)
-        print(f"Input data: {input_data}")
+        input_data = np.array(prices[-30:]).reshape(1, -1)
+        print(f"Input data for prediction: {input_data}")
 
         ensure_model_exists()
         model = load_model()
@@ -107,10 +100,11 @@ def predict_stock(symbol):
 
         Prediction.objects.create(
             symbol=symbol,
-            predicted_value=prediction,
+            predicted_price=prediction,
             date=datetime.now().date()
         )
 
+        print("Prediction saved successfully.")
         return prediction
 
     except ValueError as ve:
@@ -127,8 +121,10 @@ def predict_stock(symbol):
 
 def store_stock_data(symbol):
     print(f"Fetching and storing data for {symbol}...")
+
     try:
-        stock_data = fetch_stock_data(symbol)
+        stock_data = fetch_stock_data(symbol) 
+
         for date_str, daily_data in stock_data.items():
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
             print(f"Storing data for {date}...")

@@ -66,21 +66,30 @@ class AvailableSymbolsView(APIView):
 
 
 class PredictStockView(APIView):
+    permission_classes = [AllowAny] 
+
     def post(self, request):
-        symbol = request.data.get('symbol')
-        print(f"Received symbol: {symbol}") 
+        symbol = request.data.get('symbol', None)
+        logger.info(f"Received symbol: {symbol}")
 
         if not symbol:
             return JsonResponse({'error': 'No symbol provided'}, status=400)
 
         try:
             prediction = predict_stock(symbol)
-            return JsonResponse({'symbol': symbol, 'prediction': prediction}, status=200)
+            prediction_value = float(prediction) if isinstance(prediction, np.ndarray) else prediction
+            return JsonResponse({'symbol': symbol, 'prediction': prediction_value}, status=200)
+
         except ValueError as ve:
+            logger.error(f"ValueError: {ve}")
             return JsonResponse({'error': str(ve)}, status=400)
+
         except FileNotFoundError as fe:
+            logger.error(f"FileNotFoundError: {fe}")
             return JsonResponse({'error': str(fe)}, status=404)
+
         except Exception as e:
+            logger.exception(f"Unexpected error occurred: {e}")
             return JsonResponse({'error': f"Unexpected error: {str(e)}"}, status=500)
 
 
@@ -93,16 +102,22 @@ class GenerateReportView(APIView):
         historical_data = StockPrice.objects.filter(symbol=symbol).order_by('date')
         predicted_data = Prediction.objects.filter(symbol=symbol).order_by('date')
 
-        if not historical_data.exists() or not predicted_data.exists():
-            return Response({'error': 'No data available for the given symbol'}, status=status.HTTP_404_NOT_FOUND)
+        if not historical_data.exists():
+            logger.warning(f"No historical data found for {symbol}. Generating partial report with predictions only.")
+            historical_dates, historical_prices = [], []
+        else:
+            historical_dates = [record.date for record in historical_data]
+            historical_prices = [record.close_price for record in historical_data]
 
-        historical_dates = [record.date for record in historical_data]
-        historical_prices = [record.close_price for record in historical_data]
+        if not predicted_data.exists():
+            return Response({'error': f'No prediction data available for {symbol}'}, status=status.HTTP_404_NOT_FOUND)
+
         predicted_dates = [record.date for record in predicted_data]
         predicted_prices = [record.predicted_price for record in predicted_data]
 
         plot.figure(figsize=(10, 5))
-        plot.plot(historical_dates, historical_prices, label='Historical Prices', color='blue')
+        if historical_dates:
+            plot.plot(historical_dates, historical_prices, label='Historical Prices', color='blue')
         plot.plot(predicted_dates, predicted_prices, label='Predicted Prices', color='red', linestyle='--')
         plot.xlabel('Date')
         plot.ylabel('Price')
@@ -126,6 +141,7 @@ class GenerateReportView(APIView):
         pdf_buffer.seek(0)
 
         return render(request, 'generated_report.html', {'symbol': symbol, 'pdf_url': f'/api/generate-report/?symbol={symbol}'})
+
     class GeneratePredictionView(APIView):
         def get(self, request, *args, **kwargs):
             return render(request, 'generate_prediction.html')
