@@ -1,28 +1,24 @@
 import requests
 from datetime import datetime
 import numpy as np
-import joblib
 import os
-from sklearn.linear_model._base import LinearRegression  
-import sklearn
+from sklearn.linear_model import LinearRegression  
 from sklearn import set_config
 from .models import Prediction, StockPrice
 import dill
 
 API_URL = "https://www.alphavantage.co/query"
 API_KEY = os.getenv('ALPHA_VANTAGE_API_KEY')
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '../models/linear_regression_model.pkl')  
+MODEL_PATH = os.path.join(os.path.dirname(__file__), '../models/linear_regression_model.pkl')
 
 def fetch_stock_data(symbol):
     print(f"Fetching data for {symbol}...")
-
     params = {
         'function': 'TIME_SERIES_DAILY',
         'symbol': symbol,
         'apikey': API_KEY,
         'outputsize': 'compact'
     }
-
     response = requests.get(API_URL, params=params)
     print(f"Status Code: {response.status_code}")
 
@@ -47,8 +43,7 @@ def fetch_stock_data(symbol):
     if len(prices) < 30:
         raise ValueError("Not enough data to make a prediction.")
 
-    return list(reversed(prices)) 
-
+    return list(reversed(prices))
 
 def load_model():
     try:
@@ -61,19 +56,52 @@ def load_model():
         print(f"Model loaded successfully from {MODEL_PATH}")
         return model
 
+    except ModuleNotFoundError as e:
+        print(f"Compatibility issue: {str(e)}")
+        print("Re-training the model with the current scikit-learn version.")
+        train_model('AAPL')
+        return load_model()
+    
     except Exception as e:
         print(f"Error loading model: {str(e)}")
         raise
 
+def train_model(symbol):
+    try:
+        stock_data = fetch_stock_data(symbol)
+        print(f"Training data: {stock_data}")
+
+        X_train = np.array([stock_data[i:i + 30] for i in range(len(stock_data) - 30)])
+        y_train = np.array(stock_data[30:]).reshape(-1, 1)
+
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        print("Model trained successfully.")
+
+        with open(MODEL_PATH, 'wb') as f:
+            dill.dump(model, f)
+
+        print(f"Model saved to {MODEL_PATH}")
+
+    except Exception as e:
+        print(f"Error training model: {str(e)}")
+        raise
+def ensure_model_exists():
+    if not os.path.exists(MODEL_PATH):
+        print("Model not found. Training a new model...")
+        train_model('AAPL') 
+
 def predict_stock(symbol):
     try:
         stock_data = fetch_stock_data(symbol)
-        print(f"Fetched stock data: {stock_data[-30:]}")  
+        print(f"Fetched stock data: {stock_data[-30:]}")
 
         input_data = np.array(stock_data[-30:]).reshape(1, -1)
-        print(f"Input data: {input_data}")  
+        print(f"Input data: {input_data}")
 
+        ensure_model_exists()
         model = load_model()
+
         prediction = model.predict(input_data)[0]
         print(f"Prediction: {prediction}")
 
@@ -87,11 +115,11 @@ def predict_stock(symbol):
 
     except ValueError as ve:
         print(f"Prediction error: {str(ve)}")
-        raise ve  
+        raise ve
 
     except FileNotFoundError as fe:
         print(f"File not found error: {str(fe)}")
-        raise fe  
+        raise fe
 
     except Exception as e:
         print(f"Unexpected error: {str(e)}")
@@ -99,7 +127,6 @@ def predict_stock(symbol):
 
 def store_stock_data(symbol):
     print(f"Fetching and storing data for {symbol}...")
-
     try:
         stock_data = fetch_stock_data(symbol)
         for date_str, daily_data in stock_data.items():
